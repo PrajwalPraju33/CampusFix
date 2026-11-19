@@ -1,3 +1,4 @@
+
 package com.campusfix.service;
 
 import com.campusfix.dto.AuthRequest;
@@ -11,7 +12,9 @@ import com.campusfix.repository.CampusRepository;
 import com.campusfix.repository.InstitutionRepository;
 import com.campusfix.repository.UserRepository;
 import com.campusfix.security.JwtTokenProvider;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -33,24 +36,39 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerStudent(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
-            throw new IllegalArgumentException("Email is already registered: " + request.getEmail());
+
+        if (userRepository.existsByEmail(
+                request.getEmail().trim().toLowerCase())) {
+            throw new IllegalArgumentException(
+                    "Email is already registered: " + request.getEmail());
         }
 
         Campus campus = null;
+
         if (request.getCampusId() != null) {
-            campus = campusRepository.findById(request.getCampusId()).orElse(null);
+            campus = campusRepository.findById(request.getCampusId())
+                    .orElse(null);
         }
+
         if (campus == null) {
-            campus = campusRepository.findAll().stream().findFirst().orElse(null);
+            campus = campusRepository.findAll()
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
         }
 
-        Institution institution = (campus != null) ? campus.getInstitution() : null;
+        Institution institution =
+                (campus != null) ? campus.getInstitution() : null;
+
         if (institution == null) {
-            institution = institutionRepository.findAll().stream().findFirst().orElse(null);
+            institution = institutionRepository.findAll()
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
         }
 
-        // New registrations are strictly STUDENT role (Admins must be seeded)
+        // New registrations are strictly STUDENT role.
+        // Admin accounts must be seeded securely.
         User user = User.builder()
                 .name(request.getName().trim())
                 .email(request.getEmail().trim().toLowerCase())
@@ -62,11 +80,17 @@ public class AuthService {
 
         user = userRepository.save(user);
 
-        // Authenticate new user
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getEmail(), request.getPassword())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        // Authenticate the newly registered student.
+        Authentication authentication =
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                user.getEmail(),
+                                request.getPassword()
+                        )
+                );
+
+        SecurityContextHolder.getContext()
+                .setAuthentication(authentication);
 
         String token = tokenProvider.generateToken(authentication);
 
@@ -76,23 +100,39 @@ public class AuthService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .institutionId(institution != null ? institution.getId() : null)
-                .institutionName(institution != null ? institution.getName() : null)
-                .campusId(campus != null ? campus.getId() : null)
-                .campusName(campus != null ? campus.getName() : null)
+                .institutionId(
+                        institution != null ? institution.getId() : null)
+                .institutionName(
+                        institution != null ? institution.getName() : null)
+                .campusId(
+                        campus != null ? campus.getId() : null)
+                .campusName(
+                        campus != null ? campus.getName() : null)
                 .build();
     }
 
+    // Fix for Hibernate LazyInitializationException during login.
+    @Transactional(readOnly = true)
     public AuthResponse login(AuthRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail().trim().toLowerCase(), request.getPassword())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String email = request.getEmail().trim().toLowerCase();
+
+        Authentication authentication =
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                email,
+                                request.getPassword()
+                        )
+                );
+
+        SecurityContextHolder.getContext()
+                .setAuthentication(authentication);
 
         String token = tokenProvider.generateToken(authentication);
 
-        User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
 
         return AuthResponse.builder()
                 .token(token)
@@ -100,10 +140,26 @@ public class AuthService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .institutionId(user.getInstitution() != null ? user.getInstitution().getId() : null)
-                .institutionName(user.getInstitution() != null ? user.getInstitution().getName() : null)
-                .campusId(user.getCampus() != null ? user.getCampus().getId() : null)
-                .campusName(user.getCampus() != null ? user.getCampus().getName() : null)
+                .institutionId(
+                        user.getInstitution() != null
+                                ? user.getInstitution().getId()
+                                : null
+                )
+                .institutionName(
+                        user.getInstitution() != null
+                                ? user.getInstitution().getName()
+                                : null
+                )
+                .campusId(
+                        user.getCampus() != null
+                                ? user.getCampus().getId()
+                                : null
+                )
+                .campusName(
+                        user.getCampus() != null
+                                ? user.getCampus().getName()
+                                : null
+                )
                 .build();
     }
 }

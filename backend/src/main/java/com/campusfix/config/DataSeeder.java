@@ -1,3 +1,4 @@
+
 package com.campusfix.config;
 
 import com.campusfix.model.*;
@@ -10,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -31,81 +31,114 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+
         log.info("Checking and seeding CampusFix NIE North Campus master data...");
 
         // 1. Institution
         Institution nie = institutionRepository.findByCode("NIE-MYS")
-                .orElseGet(() -> institutionRepository.save(Institution.builder()
-                        .name("The National Institute of Engineering (NIE), Mysore")
-                        .code("NIE-MYS")
-                        .address("Manandavadi Road, Mysuru, Karnataka 570008")
-                        .build()));
+                .orElseGet(() -> institutionRepository.save(
+                        Institution.builder()
+                                .name("The National Institute of Engineering (NIE), Mysore")
+                                .code("NIE-MYS")
+                                .address("Manandavadi Road, Mysuru, Karnataka 570008")
+                                .build()));
 
         // 2. Campus
-        List<Campus> campuses = campusRepository.findByInstitutionId(nie.getId());
+        List<Campus> campuses =
+                campusRepository.findByInstitutionId(nie.getId());
+
         Campus northCampus;
+
         if (campuses.isEmpty()) {
-            northCampus = campusRepository.save(Campus.builder()
-                    .institution(nie)
-                    .name("NIE North Campus")
-                    .address("Koorgalli Industrial Area, Mysuru, Karnataka 570018")
-                    .build());
+            northCampus = campusRepository.save(
+                    Campus.builder()
+                            .institution(nie)
+                            .name("NIE North Campus")
+                            .address("Koorgalli Industrial Area, Mysuru, Karnataka 570018")
+                            .build());
         } else {
             northCampus = campuses.get(0);
         }
 
         // 3. Buildings
-        List<Building> existingBuildings = buildingRepository.findByCampusId(northCampus.getId());
+        List<Building> existingBuildings =
+                buildingRepository.findByCampusId(northCampus.getId());
+
         Building b1, b2, b3;
+
         if (existingBuildings.isEmpty()) {
-            b1 = buildingRepository.save(Building.builder()
-                    .campus(northCampus)
-                    .name("Sankaracharya Bhavan")
-                    .code("SB")
-                    .build());
-            b2 = buildingRepository.save(Building.builder()
-                    .campus(northCampus)
-                    .name("Madhvacharya Bhavan")
-                    .code("MB")
-                    .build());
-            b3 = buildingRepository.save(Building.builder()
-                    .campus(northCampus)
-                    .name("Ramanujacharya Bhavan")
-                    .code("RB")
-                    .build());
+
+            b1 = buildingRepository.save(
+                    Building.builder()
+                            .campus(northCampus)
+                            .name("Sankaracharya Bhavan")
+                            .code("SB")
+                            .build());
+
+            b2 = buildingRepository.save(
+                    Building.builder()
+                            .campus(northCampus)
+                            .name("Madhvacharya Bhavan")
+                            .code("MB")
+                            .build());
+
+            b3 = buildingRepository.save(
+                    Building.builder()
+                            .campus(northCampus)
+                            .name("Ramanujacharya Bhavan")
+                            .code("RB")
+                            .build());
+
         } else {
+
             b1 = existingBuildings.get(0);
             b2 = existingBuildings.size() > 1 ? existingBuildings.get(1) : b1;
             b3 = existingBuildings.size() > 2 ? existingBuildings.get(2) : b1;
         }
 
-        // 4. Admin User (admin@nie.ac.in / Admin@NIE2026)
+        // 4. Admin User
         User admin = userRepository.findByEmail("admin@nie.ac.in")
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .name("NIE Maintenance Admin")
-                        .email("admin@nie.ac.in")
-                        .password(passwordEncoder.encode("Admin@NIE2026"))
-                        .role(Role.ADMIN)
-                        .institution(nie)
-                        .campus(northCampus)
-                        .build()));
+                .orElseGet(() -> userRepository.save(
+                        User.builder()
+                                .name("NIE Maintenance Admin")
+                                .email("admin@nie.ac.in")
+                                .password(passwordEncoder.encode("Admin@NIE2026"))
+                                .role(Role.ADMIN)
+                                .institution(nie)
+                                .campus(northCampus)
+                                .build()));
 
-        // 5. Student User (student@nie.ac.in / Student@NIE2026)
+        // Reset the admin password only if it does not match.
+        if (!passwordEncoder.matches("Admin@NIE2026", admin.getPassword())) {
+            admin.setPassword(passwordEncoder.encode("Admin@NIE2026"));
+            userRepository.save(admin);
+            log.info("Admin password has been securely reset.");
+        }
+
+        log.info("ADMIN PASSWORD MATCH: {}",
+                passwordEncoder.matches("Admin@NIE2026", admin.getPassword()));
+
+        log.info("ADMIN ACCOUNT ROLE: {}", admin.getRole());
+        log.info("ADMIN ACCOUNT EMAIL: {}", admin.getEmail());
+
+        // 5. Student User
         User student = userRepository.findByEmail("student@nie.ac.in")
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .name("Prajwal Rao")
-                        .email("student@nie.ac.in")
-                        .password(passwordEncoder.encode("Student@NIE2026"))
-                        .role(Role.STUDENT)
-                        .institution(nie)
-                        .campus(northCampus)
-                        .build()));
+                .orElseGet(() -> userRepository.save(
+                        User.builder()
+                                .name("Prajwal Rao")
+                                .email("student@nie.ac.in")
+                                .password(passwordEncoder.encode("Student@NIE2026"))
+                                .role(Role.STUDENT)
+                                .institution(nie)
+                                .campus(northCampus)
+                                .build()));
 
         // 6. Sample Complaints if empty
         if (complaintRepository.count() == 0) {
+
             log.info("Seeding initial demo complaints for NIE North Campus...");
 
-            // CF-1001: Wi-Fi issue (IN_PROGRESS)
+            // CF-1001: Wi-Fi issue
             Complaint c1 = Complaint.builder()
                     .complaintNumber("CF-1001")
                     .institution(nie)
@@ -119,23 +152,39 @@ public class DataSeeder implements ApplicationRunner {
                     .priority(Priority.HIGH)
                     .status(ComplaintStatus.IN_PROGRESS)
                     .build();
+
             c1 = complaintRepository.save(c1);
 
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c1).previousStatus(null).newStatus("SUBMITTED")
-                    .updatedBy("Prajwal Rao").remarks("Complaint submitted via Student Portal.")
+                    .complaint(c1)
+                    .previousStatus(null)
+                    .newStatus("SUBMITTED")
+                    .updatedBy("Prajwal Rao")
+                    .remarks("Complaint submitted via Student Portal.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c1).previousStatus("SUBMITTED").newStatus("VERIFIED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Verified with department lab assistant.")
+                    .complaint(c1)
+                    .previousStatus("SUBMITTED")
+                    .newStatus("VERIFIED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Verified with department lab assistant.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c1).previousStatus("VERIFIED").newStatus("ASSIGNED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Assigned to K. S. Narayanan (Network Team).")
+                    .complaint(c1)
+                    .previousStatus("VERIFIED")
+                    .newStatus("ASSIGNED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Assigned to K. S. Narayanan (Network Team).")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c1).previousStatus("ASSIGNED").newStatus("IN_PROGRESS")
-                    .updatedBy("NIE Maintenance Admin").remarks("Technician is replacing the faulty switch port.")
+                    .complaint(c1)
+                    .previousStatus("ASSIGNED")
+                    .newStatus("IN_PROGRESS")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Technician is replacing the faulty switch port.")
                     .build());
 
             assignmentRepository.save(Assignment.builder()
@@ -145,7 +194,7 @@ public class DataSeeder implements ApplicationRunner {
                     .remarks("Inspect access point gateway and reboot switch stack.")
                     .build());
 
-            // CF-1002: Electrical (VERIFIED)
+            // CF-1002: Electrical
             Complaint c2 = Complaint.builder()
                     .complaintNumber("CF-1002")
                     .institution(nie)
@@ -159,18 +208,26 @@ public class DataSeeder implements ApplicationRunner {
                     .priority(Priority.MEDIUM)
                     .status(ComplaintStatus.VERIFIED)
                     .build();
+
             c2 = complaintRepository.save(c2);
 
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c2).previousStatus(null).newStatus("SUBMITTED")
-                    .updatedBy("Prajwal Rao").remarks("Complaint submitted via Student Portal.")
-                    .build());
-            statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c2).previousStatus("SUBMITTED").newStatus("VERIFIED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Scheduled for afternoon maintenance shift.")
+                    .complaint(c2)
+                    .previousStatus(null)
+                    .newStatus("SUBMITTED")
+                    .updatedBy("Prajwal Rao")
+                    .remarks("Complaint submitted via Student Portal.")
                     .build());
 
-            // CF-1003: Classroom Facilities (CLOSED with Feedback)
+            statusHistoryRepository.save(StatusHistory.builder()
+                    .complaint(c2)
+                    .previousStatus("SUBMITTED")
+                    .newStatus("VERIFIED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Scheduled for afternoon maintenance shift.")
+                    .build());
+
+            // CF-1003: Classroom Facilities
             Complaint c3 = Complaint.builder()
                     .complaintNumber("CF-1003")
                     .institution(nie)
@@ -184,31 +241,55 @@ public class DataSeeder implements ApplicationRunner {
                     .priority(Priority.HIGH)
                     .status(ComplaintStatus.CLOSED)
                     .build();
+
             c3 = complaintRepository.save(c3);
 
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus(null).newStatus("SUBMITTED")
-                    .updatedBy("Prajwal Rao").remarks("Complaint submitted.")
+                    .complaint(c3)
+                    .previousStatus(null)
+                    .newStatus("SUBMITTED")
+                    .updatedBy("Prajwal Rao")
+                    .remarks("Complaint submitted.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus("SUBMITTED").newStatus("VERIFIED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Issue verified.")
+                    .complaint(c3)
+                    .previousStatus("SUBMITTED")
+                    .newStatus("VERIFIED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Issue verified.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus("VERIFIED").newStatus("ASSIGNED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Assigned to Ramesh Kumar (AV Tech).")
+                    .complaint(c3)
+                    .previousStatus("VERIFIED")
+                    .newStatus("ASSIGNED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Assigned to Ramesh Kumar (AV Tech).")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus("ASSIGNED").newStatus("IN_PROGRESS")
-                    .updatedBy("NIE Maintenance Admin").remarks("Replaced HDMI cable.")
+                    .complaint(c3)
+                    .previousStatus("ASSIGNED")
+                    .newStatus("IN_PROGRESS")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Replaced HDMI cable.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus("IN_PROGRESS").newStatus("RESOLUTION_SUBMITTED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Tested with presentation laptop.")
+                    .complaint(c3)
+                    .previousStatus("IN_PROGRESS")
+                    .newStatus("RESOLUTION_SUBMITTED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Tested with presentation laptop.")
                     .build());
+
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c3).previousStatus("RESOLUTION_SUBMITTED").newStatus("CLOSED")
-                    .updatedBy("NIE Maintenance Admin").remarks("Resolution approved and closed.")
+                    .complaint(c3)
+                    .previousStatus("RESOLUTION_SUBMITTED")
+                    .newStatus("CLOSED")
+                    .updatedBy("NIE Maintenance Admin")
+                    .remarks("Resolution approved and closed.")
                     .build());
 
             assignmentRepository.save(Assignment.builder()
@@ -225,7 +306,7 @@ public class DataSeeder implements ApplicationRunner {
                     .comments("Super quick resolution! The projector works with clear 1080p output now. Thank you!")
                     .build());
 
-            // CF-1004: Water and Plumbing (SUBMITTED)
+            // CF-1004: Water and Plumbing
             Complaint c4 = Complaint.builder()
                     .complaintNumber("CF-1004")
                     .institution(nie)
@@ -239,11 +320,15 @@ public class DataSeeder implements ApplicationRunner {
                     .priority(Priority.MEDIUM)
                     .status(ComplaintStatus.SUBMITTED)
                     .build();
+
             c4 = complaintRepository.save(c4);
 
             statusHistoryRepository.save(StatusHistory.builder()
-                    .complaint(c4).previousStatus(null).newStatus("SUBMITTED")
-                    .updatedBy("Prajwal Rao").remarks("Complaint submitted via Student Portal.")
+                    .complaint(c4)
+                    .previousStatus(null)
+                    .newStatus("SUBMITTED")
+                    .updatedBy("Prajwal Rao")
+                    .remarks("Complaint submitted via Student Portal.")
                     .build());
         }
 
