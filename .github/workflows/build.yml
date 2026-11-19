@@ -27,8 +27,11 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Check backend dependencies
+        run: mvn -B -f backend/pom.xml dependency:tree
+
       - name: Build backend
-        run: mvn -B -f backend/pom.xml package -DskipTests
+        run: mvn -B -U -f backend/pom.xml clean package -DskipTests
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
